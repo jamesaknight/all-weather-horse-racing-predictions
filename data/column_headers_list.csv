@@ -1,0 +1,100 @@
+Features,Feature Type,"Need changing, encoding, binning?",Comments
+Race Time,Race level,Ignore eventually,Basically irrelevant but we probably need this so that we can produce race level features like Pace Pressure (ie we can identify that individual horse columns ran in/are due to run in the same race)
+Course,Race level,Needs encoding,"I think these will need to be one hot encoded (i.e Kempton Yes/No, Lingfield yes/No etc …/)"
+Distance (y),Race level,,Distance of the race in yards.
+Race Type,Race level,,"Every race we look at is A/W here, so we could maybe ditch this for this version, but Race Type LTO (Last Time Out) will be relevant "
+Runners,Race level,,Number of runners in race
+Class,Race level,Needs encoding,"This should be converted into A = 1, B = 2 etc as A is closer to B than C "
+Going,Race level,Needs encoding,"Again, almost irrelevant in AW model (usually but not always 'Standard' going), but *is* more relevant for 'Going Last Time' - as runners may have run on turf last time and there will be information in that. We will need to encode based on scale =  1 = Heavy, 2 = Soft, 3 = G/S etc"
+Pace IV Led,Race level,Needs to be individulized -then becomes a horse level feature 'ie Predicted Pace today IV at Course and Distance',"This tells us how well horses that have 'Led' have done over this Course & Distance - with 1.00 implying they have won their share of races >1 the are winning more than fair share (eg 2.00 = winning twice as many races as you'd expect from teh number of runner), <1 less than fair share etc"
+Pace IV Prominent,Race level,Needs to be individulized,AS above - **Do we look to try to allocate Led/Prominent/Held Up to each horse based on previous pace performance and then allocate it a predicted Pace IV from these three options? **
+Pace IV Held Up,Race level,Needs to be individulized,
+LTO Pace IV Leaders,Horse level,Needs to be individulized,This tells us what the Pace bias was for the individual horse in its previous race. It might highlight where a horse was likely unfavoured by its runstyle
+LTO Pace IV Prominent,Horse level,Needs to be individulized,AS above we want to allocate a LTO theoretical Pace IV based on the horses actual pace code last time (ie if it Led we allocate it 'LTO Pace IV Leaders' figures)
+LTO Pace IV Held Up,Horse level,Needs to be individulized,
+Draw,Race level,Needs encoding,This is important and interacts with Course & Distance. Ie Stall 1 at Kempton will be a big advantage over certain distances. Will need some thought tho re how we encode as draws will tend to perform similarly to neighbouring draws but it isn't a linear relationship
+Draw IV,Race level,Not sure,"This gives us the Impact Value of the draw over Course and Distance [*I don’t love this as it's probably too binary in terms of win/loss, would much prefer something like % rivals beaten but not sure I have that data)"
+Position,Target,,"This shows us where the horse finished in the race. If we are using WIN/LOSS as our target variable, them 1/not 1 is our target"
+Jockey,Horse level,Ignore for now,This is the individual jockey name. I think for now this is probably a nightmare to try to include and we would be better just relying on telling the model broadly how good the jockey is rather than it trying to learn (and likely overfit) based on hunderds of jockeys etc
+Trainer,Horse level,Ignore for now,Same comments as for jockeys
+Age,Horse level,,Age of horse
+Weight (pounds),Horse level,,Weight horses is carrying
+DSLR,Horse level,,Days since last run
+Equip,Horse level,"Poss ignore for v1, would need encoding - we could look at a v simple 'has equipment changed since last run?'",What equipment is the horse wearing. This is probably quite complicated to deal with - we could maybe consider a very simple flag that indicates if the equipment has changed since the last run or whether equipment is being used for first time ever
+Sex Abbrev,Horse level,Needs encoding,"One Hot Encoded as each colt, gelding, mare, filly is distinct "
+Pace String,Horse level,"Eventually bin, but use to predict 'Pace today'","This shows how the horse has run on previous starts P = Prominent, H = Held Up, L = Led - we can prob come up with a relatively simple algo to predict which of the three is the most likely for today's race"
+BF Decimal SP,Target?,May not use this,"This tells us what the final odds of the horse were in previous races, it will obviously be unknown for forthcoming races, so couldn’t be used for training. In some models, the implied % chance of the horse could be used as a target variable"
+"Won (1=Won, 0=Lost)",Target,,We could just use this as our target variable
+PRC Average,Horse level,Do we rank these? Do we do 'points off race top rated' for GBDT implementation?,"This rating is an average class indicator for the horse on same race type as today, i.e. turf, aw, chase, hurdle, NHF and is calculated using a class weighting number, the finishing position and no of runners in last race."
+PRC Last Run,Horse level,As above,
+PRC 2nd Last Run,Horse level,,
+PRC 3rd Last Run,Horse level,,
+Pace Rating,Horse level,"Feels like they have done the Pace work here and we can allocate 0-2 as 'H' 4-6 = P, >6 = L","I think they have looked at last three runs and score 0 for Held Up, 2 for Prominent and 4 for Led and summed. WE should be able to use this to create a race level 'Pace pressure' metric."
+Pace Rating Rank,Horse level,,
+OR,Horse level,Probably bin this for v1,"This gives us horse's official rating but can probably ignore in v1. (NB - *Will* be useful for non-handicap races as it tells us how good the horse is (officially, anyway))"
+OR Rank,Horse level,AS above,
+Trn Stats,Horse level,"Again, think 'Points off top rated in race' might work well","Trainer's statistical rating according to Proform - genuinely not sure how good these are, but in the absence of any other trainer metric, think we go with it"
+Trainer Stats Rank,Horse level,,
+Jky Stats,Horse level,"Again, think 'Points off top rated in race' might work well",Same comments as for Trainer rank
+Jockey Stats Rank,Horse level,,
+TrnJky Stats,Horse level,"Again, think 'Points off top rated in race' might work well",Same comments as for Trainer rank
+Trainer/Jky Stats Rank,Horse level,,
+Hrs Stats,Horse level,Might be one to leave out to start with (not even sure what it is tbh),
+Horse Stats Rank,Horse level,Might be one to leave out to start with (not even sure what it is tbh),
+HA Career Speed Rating,Horse level,,Highest Speed Rating ever achieved by the horse
+HA Career Speed Rating Rank,Horse level,,
+HA Last 1 Year Speed Rating,Horse level,,Highest Speed Rating achieved by the horse in the last 12 months
+HA Last 1 Year Speed Rating Rank,Horse level,,
+MR Career Speed Rating,Horse level,,Median Speed Rating of the horse across all its career runs
+MR Career Speed Rating Rank,Horse level,,"Order of the median career Speed Rating for each horse in today's race, from best (ranked 1) to worst"
+MR Last 1 Year Speed Rating,Horse level,,Median Speed Rating of the horse across runs from its last year
+MR Last 1 Year Speed Rating Rank,Horse level,,"Order of the median Speed Rating from the last 12 months for each horse in today's race, from best (ranked 1) to worst"
+MR Last 3 Runs Speed Rating,Horse level,,Median Speed Rating of the horse across its last 3 runs
+MR Last 3 Runs Speed Rating Rank,Horse level,,"Order of the median Speed Rating from the last 3 races for each horse in today's race, from best (ranked 1) to worst"
+LTO Speed Rating,Horse level,,Speed Rating of the horses last run
+LTO Speed Rating Rank,Horse level,,"Order of the most recent Speed Rating for each horse in today's race, from best (ranked 1) to worst"
+2nd LTO Speed Rating,Horse level,,Speed Rating of the horse’s 2nd last run
+2nd LTO Speed Rating Rank,Horse level,,"Order of the 2nd last Speed Rating for each horse in today's race, from best (ranked 1) to worst"
+3rd LTO Speed Rating,Horse level,,As above
+3rd LTO Speed Rating Rank,Horse level,,As above
+4th LTOt Speed Rating,Horse level,,As above
+4th LTO Speed Rating Rank,Horse level,,As above
+Handicap or Non Handicap,Race level,Initially we'll restrict our training/prediction set to handicaps only,Is the race a handicap or non handicap (we can restrict our training initiall to handicaps only)
+Handicap or Non Handicap Last Time Out,Horse level,,Was horse's last race a handicap or a non handicap - we need to keep this in even though we are restricting training set to handicaps
+Race Type LTO,Horse level,,Tells us whether the horse's last race was an All Weather race or a Turf race - we'll need to keep this in
+Runs Before,Horse level,Can possibly bin this as have the info in another form below (*see FLAT AW/TURF runs before),Count of All Runs before this run 
+Won Before,Horse level,Can possibly bin this as have the info in another form below (*see FLAT AW/TURF wins before),Count of All wins before this run
+Class LTO (Same Code),Horse level,,"Class of the race last time this horse ran the same
+Race Type as today (for our purposes this will be the last AW race it ran in)"
+Distance LTO (Same Code),Horse level,,Distance of the race in yards the last time the horse ran in the same Race Type
+FinPos LTO (Same Code),Horse level,,Finishing Position last time out the last time the horse ran in the same Race Type
+Distance To Winner LTO (Same Code),Horse level,,"Number of lengths behind the winning horse the last
+time the horse ran in the same Race Type "
+Betfair SP Odds LTO (Numerical) (Same Code),Horse level,"can't include in raw form, but can get a useful metric for horses that ran in hcps lto",Betfair Starting Price (including the stake) last time the horse ran in same Race Type (*** NB - this will be misleading if we include in raw form but could be useful if we restrict to horses whose last run was in a handicap and we adjust for field size))
+FLAT TURF Runs Before,Horse level,,Bit of double counting here so maybe we can get rid of 'Runs Before'?
+FLAT AW Runs Before,Horse level,,
+FLAT TURF Wins Before,Horse level,,Bit of double counting here so maybe we can get rid of 'Wins Before'?
+FLAT AW Wins Before,Horse level,,
+History (CD BF etc),Horse level,Bin this for now,
+Distance To Winner LTO,Horse level,Bin this for now as we have the info for same code,
+Betfair SP Odds LTO (Decimcal),Horse level,Bin this for now as we have the info for same code,
+Headgear LTO,Horse level,May gnore for v1 unless we can encode v simple - has it changed from last run,What equipment did horse weare last time out
+All PRB,Horse level,,Average Percent of Rivals Beaten in All runs
+Today's Going Wins,Horse level,,What it says on tin
+Today's Going Places,Horse level,,
+Today's Going Runs,Horse level,,
+Today's Going PRB,Horse level,,This is the average % rivals beaten on Today's going
+Today's Distance Wins,Horse level,,
+Today's Distance Places,Horse level,,
+Today's Distance Runs,Horse level,,
+Today's Distance PRB,Horse level,,This is the average % rivals beaten  at today's distance
+Today's Class Wins,Horse level,,
+Today's Class Places,Horse level,,
+Today's Class Runs,Horse level,,
+Today's Class PRB,Horse level,,This is the average % rivals beaten in today's class
+Today's Course Wins,Horse level,,
+Today's Course Places,Horse level,,
+Today's Course Runs,Horse level,,
+Today's Course PRB,Horse level,,This is the average % rivals beaten at today's course
+Number of Runners LTO (Same Code),Horse level,Might be useful for combing with Betfair SP metric for last time out handicaps,
+Actual Going LTO,Horse level,,Going Last time out
