@@ -1,8 +1,8 @@
 import pandas as pd
 
 # Load the CSV file
-input_file = '../data/2025_01_02.csv'
-output_file = '../data/transformed_data.csv'
+input_file = '../data/AW_Processed.csv'
+output_file = '../data/transformed_data_2.csv'
 
 # Read the CSV into a DataFrame
 data = pd.read_csv(input_file, header=None)
