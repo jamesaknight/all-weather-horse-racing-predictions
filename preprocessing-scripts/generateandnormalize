@@ -104,8 +104,21 @@ aw_data['LTO Pace IV'] = aw_data.apply(calculate_lto_pace_iv, axis=1)
 # Drop the original LTO pace columns and 'Pace String'
 aw_data = aw_data.drop(columns=['LTO Pace IV Leaders', 'LTO Pace IV Prominent', 'LTO Pace IV Held Up', 'Pace String'])
 
+# Ensure there is a 'Pace Rating' column. If it's named differently, replace 'Pace Rating' below with the correct column name.
+if 'Pace Rating' in aw_data.columns:
+    # Calculate Pace Pressure Index (PPI)
+    aw_data['PPI'] = aw_data.groupby('Race Time')['Pace Rating'].transform(lambda x: round(x.sum() / len(x), 3))
+else:
+    raise ValueError("The dataset does not contain a 'Pace Rating' column.")
+
 # Drop 'Jockey' and 'Trainer' columns
 aw_data = aw_data.drop(columns=['Jockey', 'Trainer'])
+
+
+
+# Cap 'DTW' values and handle failed finishers
+aw_data['DTW'] = aw_data['DTW'].apply(lambda x: min(x, 30) if x > 0 else x)  # Cap DTW at 30
+aw_data.loc[aw_data['Position'] > 50, 'DTW'] = 30  # Set DTW to 30 for failed finishers
 
 # Calculate the 'PRB' column
 def calculate_prb(row):
@@ -113,13 +126,9 @@ def calculate_prb(row):
     runners = row['Runners']
     if position > 50:  # Horse failed to finish
         return 0.0
-    return round((position - 1) / (runners - 1), 2)
+    return round(1 - ((position - 1) / (runners - 1)), 2)
 
 aw_data['PRB'] = aw_data.apply(calculate_prb, axis=1)
-
-# Cap 'DTW' values and handle failed finishers
-aw_data['DTW'] = aw_data['DTW'].apply(lambda x: min(x, 30) if x > 0 else x)  # Cap DTW at 30
-aw_data.loc[aw_data['Position'] > 50, 'DTW'] = 30  # Set DTW to 30 for failed finishers
 
 # Cap 'Distance To Winner LTO (Same Code)' values and handle failed finishers
 aw_data['Distance To Winner LTO (Same Code)'] = aw_data['Distance To Winner LTO (Same Code)'].apply(
@@ -297,7 +306,7 @@ aw_data_sorted_normalized = copy.deepcopy(aw_data_sorted)
 
 # Define the columns you wish to normalize
 columns_to_normalize = [
-    "Distance (y)", "Class", "Going", "DTW", "Draw IV", "Position", 
+    "Distance (y)", "Class", "Going", "PPI", "DTW", "Draw IV", "Position", 
     "Age", "Weight (pounds)", "DSLR", "PRC Average", "PRC Last Run", 
     "PRC 2nd Last Run", "PRC 3rd Last Run", "Pace Rating", "Pace Rating Rank", 
     "OR Rank", "Trn Stats", "Trainer Stats Rank", "Jky Stats", "Jockey Stats Rank", 
@@ -353,3 +362,4 @@ for col in columns_to_normalize:
 # Export the normalized DataFrame to a new CSV
 aw_data_sorted_normalized.to_csv('AW_Processed_Normalized.csv', index=False)
 print("Normalized data (with -1 retained and floats to 4 d.p.) saved to: AW_Processed_Normalized.csv")
+
