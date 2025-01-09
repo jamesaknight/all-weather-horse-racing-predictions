@@ -12,7 +12,7 @@ from tensorflow.keras.layers import Dense
 #      - Target columns: Horse_1_LOG DTW+, ..., Horse_20_LOG DTW+.
 # =========================================================================
 
-df = pd.read_csv("final_race_data.csv")
+df = pd.read_csv("../data/final_race_data.csv")
 
 # =========================================================================
 # NEW STEP: KEEP ONLY RACES WHERE RACE_Level_HCP = 1

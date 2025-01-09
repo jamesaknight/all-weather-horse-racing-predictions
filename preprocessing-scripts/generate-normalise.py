@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 # Load the dataset
-aw_data = pd.read_csv('AW_2023.csv')
+aw_data = pd.read_csv('../data/AW_2023.csv')
 
 # One-hot encode the 'Course' column with 0/1 instead of True/False
 encoded_courses = pd.get_dummies(aw_data['Course'], prefix='Course').astype(int)
@@ -291,8 +291,8 @@ sorted_columns = race_level_cols + target_variable_cols + horse_level_cols
 aw_data_sorted = aw_data[sorted_columns]
 
 #Save the updated dataset to the same CSV file
-aw_data_sorted.to_csv('AW_Processed.csv', index=False)
-print("Processed data saved to: AW_Processed.csv")
+aw_data_sorted.to_csv('../data/AW_Processed.csv', index=False)
+print("Processed data saved to: ../data/AW_Processed.csv")
 
 
 # -----------------------------------------------------------
