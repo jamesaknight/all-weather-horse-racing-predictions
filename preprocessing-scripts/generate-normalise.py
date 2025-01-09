@@ -1,0 +1,364 @@
+import pandas as pd
+import numpy as np
+
+# Load the dataset
+aw_data = pd.read_csv('AW_2023.csv')
+
+# One-hot encode the 'Course' column with 0/1 instead of True/False
+encoded_courses = pd.get_dummies(aw_data['Course'], prefix='Course').astype(int)
+
+# Add the one-hot encoded columns to the original DataFrame
+aw_data = pd.concat([aw_data, encoded_courses], axis=1)
+
+# Drop the original 'Course' column
+aw_data = aw_data.drop(columns=['Course'])
+
+# Define a mapping for 'Race Type' and 'Race Type LTO'
+race_type_mapping = {
+    'A/W': 0,
+    'Turf': 1,
+    'Jumps': 2,
+    'NH Flat': 2
+}
+
+# Encode 'Race Type' and ensure all rows are included
+aw_data['Race Type'] = aw_data['Race Type'].map(race_type_mapping)
+
+# Filter the dataset to include only 'Race Type' = 0 (A/W races)
+aw_data = aw_data[aw_data['Race Type'] == 0]
+
+# Encode 'Race Type LTO', handling missing values as -1
+aw_data['Race Type LTO'] = aw_data['Race Type LTO'].map(race_type_mapping).fillna(-1).astype(int)
+
+# Define a mapping for 'Class' and 'Class LTO (Same Code)'
+class_mapping = {letter: idx + 1 for idx, letter in enumerate("ABCDEFG")}
+
+# Encode 'Class' column
+aw_data['Class'] = aw_data['Class'].map(class_mapping)
+
+# Encode 'Class LTO (Same Code)', handling missing values for unraced horses as -1
+aw_data['Class LTO (Same Code)'] = aw_data['Class LTO (Same Code)'].map(class_mapping).fillna(-1).astype(int)
+
+# Handle 'Draw' column: replace 0 with -1
+aw_data['Draw'] = aw_data['Draw'].apply(lambda x: -1 if x == 0 else x)
+
+# Handle 'Draw IV' column: replace blanks/missing values with -1
+aw_data['Draw IV'] = aw_data['Draw IV'].fillna(-1).astype(float)
+
+# Define a mapping for 'Going' and 'Actual Going LTO'
+going_mapping = {
+    'Heavy': 1,
+    'Soft': 2, 'Slow': 2,
+    'Good To Soft': 3,
+    'Good': 4,
+    'Standard': 4,
+    'Good To Firm': 5,
+    'Fast': 6,
+    'Firm': 6
+}
+
+# Encode 'Going' column, handling missing values as 4 (Good/Standard)
+aw_data['Going'] = aw_data['Going'].map(going_mapping).fillna(4).astype(int)
+
+# Encode 'Actual Going LTO' column, handling missing values as 4 (Good/Standard)
+aw_data['Actual Going LTO'] = aw_data['Actual Going LTO'].map(going_mapping).fillna(4).astype(int)
+
+
+# Create the 'Today Pace IV' column based on the 'Pace Rating'
+def calculate_today_pace_iv(row):
+    if pd.isna(row['Pace Rating']):  # Handle missing 'Pace Rating'
+        return -1
+    elif row['Pace Rating'] in [0, 2]:
+        return row['Pace IV Held Up']
+    elif row['Pace Rating'] in [4, 6]:
+        return row['Pace IV Prominent']
+    elif row['Pace Rating'] >= 8:
+        return row['Pace IV Led']
+    else:
+        return -1  # Default to -1 for unexpected values
+
+aw_data['Today Pace IV'] = aw_data.apply(calculate_today_pace_iv, axis=1)
+
+# Drop the original pace columns
+aw_data = aw_data.drop(columns=['Pace IV Led', 'Pace IV Prominent', 'Pace IV Held Up'])
+
+# Create the 'LTO Pace IV' column based on 'Pace String'
+def calculate_lto_pace_iv(row):
+    if pd.isna(row['Pace String']):  # Handle missing 'Pace String'
+        return -1
+    pace_string = row['Pace String'].replace('-', '').replace('/', '')  # Remove dashes and slashes
+    if not pace_string:  # No letters in the string
+        return -1
+    last_letter = pace_string[-1]  # Get the far-right letter
+    if last_letter == 'H':
+        return row['LTO Pace IV Held Up']
+    elif last_letter == 'P':
+        return row['LTO Pace IV Prominent']
+    elif last_letter == 'L':
+        return row['LTO Pace IV Leaders']
+    else:
+        return -1  # Default to -1 for unexpected letters
+
+aw_data['LTO Pace IV'] = aw_data.apply(calculate_lto_pace_iv, axis=1)
+
+# Drop the original LTO pace columns and 'Pace String'
+aw_data = aw_data.drop(columns=['LTO Pace IV Leaders', 'LTO Pace IV Prominent', 'LTO Pace IV Held Up', 'Pace String'])
+
+# Ensure there is a 'Pace Rating' column. If it's named differently, replace 'Pace Rating' below with the correct column name.
+if 'Pace Rating' in aw_data.columns:
+    # Calculate Pace Pressure Index (PPI)
+    aw_data['PPI'] = aw_data.groupby('Race Time')['Pace Rating'].transform(lambda x: round(x.sum() / len(x), 3))
+else:
+    raise ValueError("The dataset does not contain a 'Pace Rating' column.")
+
+# Drop 'Jockey' and 'Trainer' columns
+aw_data = aw_data.drop(columns=['Jockey', 'Trainer'])
+
+
+
+# Cap 'DTW' values and handle failed finishers
+aw_data['DTW'] = aw_data['DTW'].apply(lambda x: min(x, 30) if x > 0 else x)  # Cap DTW at 30
+aw_data.loc[aw_data['Position'] > 50, 'DTW'] = 30  # Set DTW to 30 for failed finishers
+
+# Calculate the 'PRB' column
+def calculate_prb(row):
+    position = row['Position']
+    runners = row['Runners']
+    if position > 50:  # Horse failed to finish
+        return 0.0
+    return round(1 - ((position - 1) / (runners - 1)), 2)
+
+aw_data['PRB'] = aw_data.apply(calculate_prb, axis=1)
+
+# Cap 'Distance To Winner LTO (Same Code)' values and handle failed finishers
+aw_data['Distance To Winner LTO (Same Code)'] = aw_data['Distance To Winner LTO (Same Code)'].apply(
+    lambda x: min(x, 30) if pd.notna(x) else x  # Cap at 30
+)
+aw_data.loc[aw_data['FinPos LTO (Same Code)'] > 50, 'Distance To Winner LTO (Same Code)'] = 30  # Set to 30 for failed finishers
+
+# Handle missing 'DSLR' entries
+aw_data['DSLR'] = aw_data['DSLR'].fillna(-1).astype(int)
+
+# Create 'Equip Change' column
+def calculate_equip_change(row):
+    if '1' in str(row['Equip']):  # Check if 'Equip' contains '1'
+        return 2
+    equip_letters = ''.join([char for char in str(row['Equip']) if char.isalpha()])  # Extract letters from 'Equip'
+    headgear_letters = ''.join([char for char in str(row['Headgear LTO']) if char.isalpha()])  # Extract letters from 'Headgear LTO'
+
+    # Check for one being blank and the other containing letters
+    if (not equip_letters and headgear_letters) or (equip_letters and not headgear_letters):
+        return 1
+
+    # Check if letters differ
+    if equip_letters != headgear_letters:
+        return 1
+
+    # Default to 0 if letters are the same or both are blank
+    return 0
+
+aw_data['Equip Change'] = aw_data.apply(calculate_equip_change, axis=1)
+
+# Drop the original 'Equip' and 'Headgear LTO' columns
+aw_data = aw_data.drop(columns=['Equip', 'Headgear LTO'])
+
+# Normalize PRB columns and handle missing values
+prb_columns = ['All PRB', 'Today\'s Going PRB', 'Today\'s Distance PRB',
+               'Today\'s Class PRB', 'Today\'s Course PRB']
+
+for col in prb_columns:
+    aw_data[col] = aw_data[col].div(100).round(2).fillna(-1).astype(float)
+
+# Compute BFSP% and BFSP% LTO
+aw_data['BFSP%'] = aw_data['BF Decimal SP'].apply(
+    lambda x: round(1 / x, 3) if pd.notna(x) and x > 1 else (None if x == 1 else -1)
+)
+
+aw_data['BFSP% LTO'] = aw_data['Betfair SP Odds LTO (Numerical) (Same Code)'].apply(
+    lambda x: round(1 / x, 3) if pd.notna(x) and x > 1 else (None if x == 1 else -1)
+)
+
+# Drop the original BF columns
+aw_data = aw_data.drop(columns=['BF Decimal SP', 'Betfair SP Odds LTO (Numerical) (Same Code)'])
+
+
+# Encode 'Sex Abbrev'
+aw_data['Sex Abbrev'] = aw_data['Sex Abbrev'].apply(lambda x: 1 if str(x).lower() in ['f', 'm'] else 0)
+
+# Encode 'HCP' and 'HCP LTO'
+aw_data['HCP'] = aw_data['Handicap or Non Handicap'].apply(
+    lambda x: 1 if str(x).strip().upper() == 'HANDICAP' else (0 if str(x).strip().upper() == 'NON HANDICAP' else -1)
+)
+aw_data['HCP LTO'] = aw_data['Handicap or Non Handicap Last Time Out'].apply(
+    lambda x: 1 if str(x).strip().upper() == 'HANDICAP' else (0 if str(x).strip().upper() == 'NON HANDICAP' else -1)
+)
+
+# Create 'Distance v LTO'
+aw_data['Distance v LTO'] = aw_data['Distance (y)'] - aw_data['Distance In Yards LTO (Same Code)']
+
+# Drop 'Distance In Yards LTO (Same Code)'
+aw_data = aw_data.drop(columns=['Distance In Yards LTO (Same Code)'])
+
+# Create 'DTW LTO Hcp' column
+aw_data['DTW LTO Hcp'] = aw_data.apply(
+    lambda row: row['Distance To Winner LTO (Same Code)'] if row['HCP LTO'] == 1 else -1, axis=1
+)
+
+# Create 'Market LTO Hcp' column and ensure it is a float rounded to 3 decimal places
+aw_data['Market LTO Hcp'] = aw_data.apply(
+    lambda row: round(row['BFSP% LTO'] * row['Number of Runners LTO (Same Code)'], 3)
+    if row['HCP LTO'] == 1 and pd.notna(row['BFSP% LTO']) and pd.notna(row['Number of Runners LTO (Same Code)'])
+    else -1,
+    axis=1
+)
+
+
+# Format specified columns to 3 decimal places
+columns_to_format = ['Draw IV', 'DTW', 'Distance To Winner LTO (Same Code)', 'DTW LTO Hcp']
+for col in columns_to_format:
+    if col in aw_data.columns:
+        aw_data[col] = aw_data[col].round(3)
+
+# Handle 'Runs Before' = 0 and set specified columns to -1
+columns_to_update = [
+    'PRC Average', 'PRC Last Run', 'PRC 2nd Last Run', 'PRC 3rd Last Run',
+    'HA Career Speed Rating', 'HA Career Speed Rating Rank',
+    'HA Last 1 Year Speed Rating', 'HA Last 1 Year Speed Rating Rank',
+    'MR Career Speed Rating', 'MR Career Speed Rating Rank',
+    'MR Last 1 Year Speed Rating', 'MR Last 1 Year Speed Rating Rank',
+    'MR Last 3 Runs Speed Rating', 'MR Last 3 Runs Speed Rating Rank',
+    'LTO Speed Rating', 'LTO Speed Rating Rank', '2nd LTO Speed Rating',
+    '2nd LTO Speed Rating Rank', '3rd LTO Speed Rating',
+    '3rd LTO Speed Rating Rank', '4th LTOt Speed Rating',
+    '4th LTO Speed Rating Rank'
+]
+
+aw_data.loc[aw_data['Runs Before'] == 0, columns_to_update] = -1
+
+# Drop original 'Handicap' columns and additional ones
+aw_data = aw_data.drop(columns=[
+    'Handicap or Non Handicap',
+    'Handicap or Non Handicap Last Time Out',
+    'History (CD BF etc)',
+    'OR',
+    'Distance To Winner LTO'
+])
+
+# Create 'LOG DTW+' column, rounded to 3 decimal places
+aw_data['LOG DTW+'] = aw_data['DTW'].apply(lambda x: round(np.log(x + 1), 3) if x != -1 else -1)
+
+# Create 'LOG DTW+ LTH' column, rounded to 3 decimal places
+aw_data['LOG DTW+ LTH'] = aw_data['DTW LTO Hcp'].apply(lambda x: round(np.log(x + 1), 3) if x != -1 else -1)
+
+# Define the mapping for each feature category
+feature_roles = {
+    'Target Variable': [
+        'DTW', 'Won (1=Won, 0=Lost)', 'PRB', 'BFSP%', 'LOG DTW+'
+    ],
+    'Race Level': [
+        'Distance (y)', 'Race Type', 'Runners', 'Class', 'Going',
+        'Course_Chelmsford City', 'Course_Kempton', 'Course_Lingfield',
+        'Course_Newcastle', 'Course_Southwell', 'Course_Wolverhampton',
+        'HCP', 'PPI', 'Race Time'
+    ]
+}
+
+# Create the new metadata row
+metadata_row = []
+for column in aw_data.columns:
+    if column in feature_roles['Target Variable']:
+        metadata_row.append('Target Variable')
+    elif column in feature_roles['Race Level']:
+        metadata_row.append('Race Level')
+    else:
+        metadata_row.append('Horse Level')
+
+# Convert the metadata row to a DataFrame
+metadata_df = pd.DataFrame([metadata_row], columns=aw_data.columns)
+
+# Combine metadata row with the main dataset
+aw_data = pd.concat([aw_data.iloc[:0], metadata_df, aw_data], ignore_index=True)
+
+# Categorize columns into Race Level, Target Variable, and Horse Level
+race_level_cols = [col for col in aw_data.columns if col in feature_roles['Race Level']]
+target_variable_cols = [col for col in aw_data.columns if col in feature_roles['Target Variable']]
+horse_level_cols = [col for col in aw_data.columns if col not in race_level_cols + target_variable_cols]
+
+# Reorder columns: Race Level -> Target Variable -> Horse Level
+sorted_columns = race_level_cols + target_variable_cols + horse_level_cols
+
+# Reorder the DataFrame
+aw_data_sorted = aw_data[sorted_columns]
+
+#Save the updated dataset to the same CSV file
+aw_data_sorted.to_csv('AW_Processed.csv', index=False)
+print("Processed data saved to: AW_Processed.csv")
+
+
+# -----------------------------------------------------------
+#  ADDITIONAL CODE FOR NORMALIZATION WITH -1 VALUES RETAINED
+#  AND FLOATS TO 4 DECIMAL PLACES
+# -----------------------------------------------------------
+import copy
+
+# Create a copy of the final DataFrame (including the metadata row)
+aw_data_sorted_normalized = copy.deepcopy(aw_data_sorted)
+
+# Define the columns you wish to normalize
+columns_to_normalize = [
+    "Distance (y)", "Class", "Going", "PPI", "DTW", "Draw IV", "Position",
+    "Age", "Weight (pounds)", "DSLR", "PRC Average", "PRC Last Run",
+    "PRC 2nd Last Run", "PRC 3rd Last Run", "Pace Rating", "Pace Rating Rank",
+    "OR Rank", "Trn Stats", "Trainer Stats Rank", "Jky Stats", "Jockey Stats Rank",
+    "TrnJky Stats", "Trainer/Jky Stats Rank", "Hrs Stats", "Horse Stats Rank",
+    "HA Career Speed Rating", "HA Career Speed Rating Rank",
+    "HA Last 1 Year Speed Rating", "HA Last 1 Year Speed Rating Rank",
+    "MR Career Speed Rating", "MR Career Speed Rating Rank",
+    "MR Last 1 Year Speed Rating", "MR Last 1 Year Speed Rating Rank",
+    "MR Last 3 Runs Speed Rating", "MR Last 3 Runs Speed Rating Rank",
+    "LTO Speed Rating", "LTO Speed Rating Rank", "2nd LTO Speed Rating",
+    "2nd LTO Speed Rating Rank", "3rd LTO Speed Rating", "3rd LTO Speed Rating Rank",
+    "4th LTOt Speed Rating", "4th LTO Speed Rating Rank", "Runs Before",
+    "Won Before", "Class LTO (Same Code)", "FinPos LTO (Same Code)",
+    "Distance To Winner LTO (Same Code)", "FLAT TURF Runs Before",
+    "FLAT AW Runs Before", "FLAT TURF Wins Before", "FLAT AW Wins Before",
+    "Today's Going Wins", "Today's Going Places", "Today's Going Runs",
+    "Today's Distance Wins", "Today's Distance Places", "Today's Distance Runs",
+    "Today's Class Wins", "Today's Class Places", "Today's Class Runs",
+    "Today's Course Wins", "Today's Course Places", "Today's Course Runs",
+    "Number of Runners LTO (Same Code)", "Actual Going LTO", "Today Pace IV",
+    "LTO Pace IV", "Distance v LTO", "DTW LTO Hcp", "Market LTO Hcp",
+    "LOG DTW+ LTH"
+]
+
+# Normalize only rows >= index=1 (to skip metadata at index=0)
+for col in columns_to_normalize:
+    if col not in aw_data_sorted_normalized.columns:
+        continue
+
+    # Valid numeric mask: skip metadata row (index=0) and skip -1
+    mask = (aw_data_sorted_normalized.index >= 1) & (aw_data_sorted_normalized[col] != -1)
+
+    if mask.sum() == 0:
+        continue
+
+    # Convert to float
+    subset_vals = aw_data_sorted_normalized.loc[mask, col].astype(float)
+    col_min, col_max = subset_vals.min(), subset_vals.max()
+
+    if col_min == col_max:
+        # If all valid values are the same, set them to 0.0
+        aw_data_sorted_normalized.loc[mask, col] = 0.0
+    else:
+        # MinMax scale
+        scaled_vals = (subset_vals - col_min) / (col_max - col_min)
+        # Round to 4 decimal places
+        scaled_vals = scaled_vals.round(4)
+        aw_data_sorted_normalized.loc[mask, col] = scaled_vals
+
+    # Ensure the column is float in those rows (to avoid any text creep)
+    aw_data_sorted_normalized.loc[mask, col] = aw_data_sorted_normalized.loc[mask, col].astype(float)
+
+# Export the normalized DataFrame to a new CSV
+aw_data_sorted_normalized.to_csv('AW_Processed_Normalized.csv', index=False)
+print("Normalized data (with -1 retained and floats to 4 d.p.) saved to: AW_Processed_Normalized.csv")
