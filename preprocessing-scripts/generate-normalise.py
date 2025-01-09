@@ -360,5 +360,5 @@ for col in columns_to_normalize:
     aw_data_sorted_normalized.loc[mask, col] = aw_data_sorted_normalized.loc[mask, col].astype(float)
 
 # Export the normalized DataFrame to a new CSV
-aw_data_sorted_normalized.to_csv('AW_Processed_Normalized.csv', index=False)
-print("Normalized data (with -1 retained and floats to 4 d.p.) saved to: AW_Processed_Normalized.csv")
+aw_data_sorted_normalized.to_csv('../data/AW_Processed_Normalized.csv', index=False)
+print("Normalized data (with -1 retained and floats to 4 d.p.) saved to: ../data/AW_Processed_Normalized.csv")
