@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
+from sklearn.metrics import r2_score, mean_absolute_error
 
 # =========================================================================
 # 1) LOAD YOUR DATA
@@ -101,8 +102,8 @@ output_dim = 20  # Predicting 20 horses' LOG DTW+ values
 model = RacePredictionModel(input_dim, output_dim)
 
 # Loss and optimizer
-criterion = nn.MSELoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+criterion = nn.HuberLoss(delta=1.0)  # Huber Loss with delta=1.0
+optimizer = optim.AdamW(model.parameters(), lr=0.001, weight_decay=0.01)
 
 # =========================================================================
 # 6) TRAIN THE MODEL
@@ -117,8 +118,14 @@ y_val_tensor = torch.tensor(y_val, dtype=torch.float32)
 train_dataset = TensorDataset(X_train_tensor, y_train_tensor)
 train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 
-# Training loop
-num_epochs = 50
+# Early stopping parameters
+num_epochs = 400  # Maximum number of epochs
+patience = 60 # Increased patience to allow for slightly longer training
+delta = 1e-9  # Minimum improvement threshold for validation loss
+
+best_val_loss = float('inf')
+epochs_without_improvement = 0
+
 for epoch in range(num_epochs):
     model.train()
     running_loss = 0.0
@@ -128,22 +135,34 @@ for epoch in range(num_epochs):
         loss = criterion(outputs, y_batch)
         loss.backward()
         optimizer.step()
-
         running_loss += loss.item()
 
-        if (batch_idx + 1) % 10 == 0:  # Print every 10 batches
-            print(f"Epoch [{epoch+1}/{num_epochs}], Batch [{batch_idx+1}/{len(train_loader)}], Loss: {loss.item():.4f}")
+    # Average loss for the epoch
+    avg_train_loss = running_loss / len(train_loader)
+    print(f"Epoch [{epoch+1}/{num_epochs}], Average Training Loss: {avg_train_loss:.4f}")
 
-    # Print average loss for the epoch
-    print(f"Epoch [{epoch+1}/{num_epochs}], Average Loss: {running_loss/len(train_loader):.4f}")
-
-    # Validation
+    # Validation loss
     model.eval()
     with torch.no_grad():
         val_outputs = model(X_val_tensor)
-        val_loss = criterion(val_outputs, y_val_tensor)
+        val_loss = criterion(val_outputs, y_val_tensor).item()
+    print(f"Epoch [{epoch+1}/{num_epochs}], Validation Loss: {val_loss:.4f}")
 
-    print(f"Epoch [{epoch+1}/{num_epochs}], Validation Loss: {val_loss.item():.4f}")
+    # Check for early stopping with a minimum improvement threshold
+    if best_val_loss - val_loss > delta:
+        best_val_loss = val_loss
+        epochs_without_improvement = 0
+        torch.save(model.state_dict(), "best_model.pth")  # Save the best model
+    else:
+        epochs_without_improvement += 1
+
+    if epochs_without_improvement >= patience:
+        print(f"Early stopping triggered after {epoch+1} epochs.")
+        break
+
+# Load the best model
+model.load_state_dict(torch.load("best_model.pth"))
+
 
 # =========================================================================
 # 7) EVALUATE ON THE TEST SET
@@ -154,9 +173,19 @@ y_test_tensor = torch.tensor(y_test, dtype=torch.float32)
 model.eval()
 with torch.no_grad():
     test_outputs = model(X_test_tensor)
-    test_loss = criterion(test_outputs, y_test_tensor)
+    test_loss = criterion(test_outputs, y_test_tensor).item()
 
-print(f"Test MSE (loss): {test_loss.item():.4f}")
+# Convert predictions and ground truth back to NumPy arrays
+test_outputs_np = test_outputs.numpy()
+y_test_np = y_test_tensor.numpy()
+
+# Compute additional metrics
+r2 = r2_score(y_test_np, test_outputs_np)
+mae = mean_absolute_error(y_test_np, test_outputs_np)
+
+print(f"Test Loss (Huber): {test_loss:.4f}")
+print(f"Test R²: {r2:.4f}")
+print(f"Test MAE: {mae:.4f}")
 
 # =========================================================================
 # 8) PREDICT FOR RACES WITH MISSING LOG DTW+
@@ -166,15 +195,13 @@ model.eval()
 with torch.no_grad():
     preds = model(X_pred_tensor)
 
-# Keep only Race_Level_Race Time, Horse_1_Horse to Horse_20_Horse, and predictions in the output
+# Save predictions as before
 df_output = df_pred[["Race_Level_Race Time"]].copy()
-
 for i in range(1, 21):
     horse_col = f"Horse_{i}_Horse"
     if horse_col in df_pred.columns:
         df_output[horse_col] = df_pred[horse_col]
     df_output[f"Horse_{i}_LOG DTW+_PRED"] = preds[:, i - 1].numpy()
 
-# Save predictions
 df_output.to_csv("predictions/predictions_for_missing_LOGDTW.csv", index=False)
 print("Done! Predictions saved in 'predictions/predictions_for_missing_LOGDTW.csv'.")
