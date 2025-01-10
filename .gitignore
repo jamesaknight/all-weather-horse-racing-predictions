@@ -3,3 +3,4 @@
 env
 env3.7
 myenv
+predictions/best_model.pth
