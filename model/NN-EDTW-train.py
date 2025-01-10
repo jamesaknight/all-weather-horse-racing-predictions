@@ -122,7 +122,7 @@ y_val_tensor = torch.tensor(y_val, dtype=torch.float32)
 
 # DataLoader for batch processing
 train_dataset = TensorDataset(X_train_tensor, y_train_tensor)
-train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+train_loader = DataLoader(train_dataset, batch_size=256, shuffle=True)
 
 # Early stopping parameters
 num_epochs = 400  # Maximum number of epochs
