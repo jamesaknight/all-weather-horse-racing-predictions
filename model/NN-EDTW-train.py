@@ -1,24 +1,23 @@
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, TensorDataset
 from sklearn.metrics import r2_score, mean_absolute_error
 
 # =========================================================================
-# 1) LOAD YOUR DATA
+# 1) LOAD PROCESSED DATA
 # =========================================================================
-df = pd.read_csv("../data/final_race_data.csv")
+train_file = "../data/processed_train_data.csv"
+pred_file = "../data/processed_pred_data.csv"
+
+df_train_sorted = pd.read_csv(train_file)
+df_pred_sorted = pd.read_csv(pred_file)
 
 # =========================================================================
-# NEW STEP: KEEP ONLY RACES WHERE RACE_Level_HCP = 1
-# =========================================================================
-df = df[df["Race_Level_HCP"] == 1].copy()
-
-# =========================================================================
-# 2) DEFINE THE RACE-LEVEL AND HORSE-LEVEL FEATURES
+# 2) DEFINE FEATURES AND TARGETS
 # =========================================================================
 race_level_features = [
     "Race_Level_Distance (y)",
@@ -34,7 +33,6 @@ race_level_features = [
 ]
 
 base_horse_level_features = [
-    "Draw IV",
     "Trn Stats",
     "Jky Stats",
     "MR Last 3 Runs Speed Rating",
@@ -49,6 +47,7 @@ base_horse_level_features = [
     "Age",
     "DSLR",
     "Draw",
+    "Draw IV",
 ]
 
 # Construct the full list of input columns (X)
@@ -62,16 +61,10 @@ for i in range(1, 21):
 y_cols = [f"Horse_{i}_LOG DTW+" for i in range(1, 21)]
 
 # =========================================================================
-# 3) FILTER / PREPARE DATA
+# 3) SPLIT INTO X, Y ARRAYS FOR TRAINING/VALIDATION/TEST
 # =========================================================================
-df_train = df.dropna(subset=y_cols, how='any').copy()
-df_pred = df[df[y_cols].isnull().any(axis=1)].copy()
-
-# =========================================================================
-# 4) SPLIT INTO X, Y ARRAYS FOR TRAINING/VALIDATION/TEST
-# =========================================================================
-X_full = df_train[X_cols].values.astype(float)
-y_full = df_train[y_cols].values.astype(float)
+X_full = df_train_sorted[X_cols].values.astype(float)
+y_full = df_train_sorted[y_cols].values.astype(float)
 
 # First, split off a test set (20% of total)
 X_temp, X_test, y_temp, y_test = train_test_split(
@@ -92,7 +85,7 @@ print("  X_test:", X_test.shape)
 print("  y_test:", y_test.shape)
 
 # =========================================================================
-# 5) BUILD A SIMPLE NEURAL NETWORK WITH PYTORCH
+# 4) BUILD A SIMPLE NEURAL NETWORK WITH PYTORCH
 # =========================================================================
 class RacePredictionModel(nn.Module):
     def __init__(self, input_dim, output_dim):
@@ -119,7 +112,7 @@ criterion = nn.HuberLoss(delta=1.0)  # Huber Loss with delta=1.0
 optimizer = optim.AdamW(model.parameters(), lr=0.001, weight_decay=0.01)
 
 # =========================================================================
-# 6) TRAIN THE MODEL
+# 5) TRAIN THE MODEL
 # =========================================================================
 # Convert data to torch tensors
 X_train_tensor = torch.tensor(X_train_final, dtype=torch.float32)
@@ -133,7 +126,7 @@ train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 
 # Early stopping parameters
 num_epochs = 400  # Maximum number of epochs
-patience = 60 # Increased patience to allow for slightly longer training
+patience = 60  # Increased patience to allow for slightly longer training
 delta = 1e-9  # Minimum improvement threshold for validation loss
 
 best_val_loss = float('inf')
@@ -176,9 +169,8 @@ for epoch in range(num_epochs):
 # Load the best model
 model.load_state_dict(torch.load("best_model.pth"))
 
-
 # =========================================================================
-# 7) EVALUATE ON THE TEST SET
+# 6) EVALUATE ON THE TEST SET
 # =========================================================================
 X_test_tensor = torch.tensor(X_test, dtype=torch.float32)
 y_test_tensor = torch.tensor(y_test, dtype=torch.float32)
@@ -201,19 +193,19 @@ print(f"Test R²: {r2:.4f}")
 print(f"Test MAE: {mae:.4f}")
 
 # =========================================================================
-# 8) PREDICT FOR RACES WITH MISSING LOG DTW+
+# 7) PREDICT FOR RACES WITH MISSING LOG DTW+
 # =========================================================================
-X_pred_tensor = torch.tensor(df_pred[X_cols].values.astype(float), dtype=torch.float32)
+X_pred_tensor = torch.tensor(df_pred_sorted[X_cols].values.astype(float), dtype=torch.float32)
 model.eval()
 with torch.no_grad():
     preds = model(X_pred_tensor)
 
 # Save predictions as before
-df_output = df_pred[["Race_Level_Race Time"]].copy()
+df_output = df_pred_sorted[["Race_Level_Race Time"]].copy()
 for i in range(1, 21):
     horse_col = f"Horse_{i}_Horse"
-    if horse_col in df_pred.columns:
-        df_output[horse_col] = df_pred[horse_col]
+    if horse_col in df_pred_sorted.columns:
+        df_output[horse_col] = df_pred_sorted[horse_col]
     df_output[f"Horse_{i}_LOG DTW+_PRED"] = preds[:, i - 1].numpy()
 
 df_output.to_csv("predictions/predictions_for_missing_LOGDTW.csv", index=False)

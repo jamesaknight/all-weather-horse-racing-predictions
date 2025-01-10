@@ -20,3 +20,6 @@ hidden players 2-4
 
 leaky relu
 relu
+
+## Masking
+masked huber does not work
