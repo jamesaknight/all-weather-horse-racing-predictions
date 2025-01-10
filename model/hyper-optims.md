@@ -10,3 +10,13 @@
 
 Huber - delta 1
 MSE
+
+## Layout
+
+various combinations of 2^n node for hidden layers
+hidden players 2-4
+
+## Activation
+
+leaky relu
+relu

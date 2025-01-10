@@ -29,6 +29,8 @@ race_level_features = [
     "Race_Level_Course_Newcastle",
     "Race_Level_Course_Southwell",
     "Race_Level_Course_Wolverhampton",
+    "Race_Level_PPI",
+    "Race_Level_Going",
 ]
 
 base_horse_level_features = [
@@ -38,6 +40,15 @@ base_horse_level_features = [
     "MR Last 3 Runs Speed Rating",
     "LTO Speed Rating",
     "Today's Course PRB",
+    "PRC Average",
+    "PRC Last Run",
+    "PRC 2nd Last Run",
+    "PRC 3rd Last Run",
+    "Pace Rating",
+    "Weight (pounds)",
+    "Age",
+    "DSLR",
+    "Draw",
 ]
 
 # Construct the full list of input columns (X)
@@ -100,6 +111,8 @@ class RacePredictionModel(nn.Module):
 input_dim = X_train_final.shape[1]
 output_dim = 20  # Predicting 20 horses' LOG DTW+ values
 model = RacePredictionModel(input_dim, output_dim)
+
+print(model)
 
 # Loss and optimizer
 criterion = nn.HuberLoss(delta=1.0)  # Huber Loss with delta=1.0
