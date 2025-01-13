@@ -1,8 +1,8 @@
 import pandas as pd
 
 # Load the transformed CSV file
-input_file = 'AW_Processed_Normalized.csv'
-output_file = 'final_race_data.csv'
+input_file = '../data/AW_Processed_Normalized.csv'
+output_file = '../data/final_race_data.csv'
 
 # Read the CSV into a DataFrame without headers (use low_memory=False to handle mixed types)
 data = pd.read_csv(input_file, header=None, low_memory=False)
