@@ -84,3 +84,32 @@ output_unseen['Predicted PRB'] = y_unseen_pred
 output_unseen.to_csv('unseen_race_predictions.csv', index=False)
 
 print("Predictions for unseen races saved to 'unseen_race_predictions.csv'")
+
+# Normalize the predictions
+# Function to normalize Predicted PRB values
+def normalize_prb(df):
+    # Calculate the number of runners (N) and sum of Predicted PRBs for each race
+    df['N'] = df.groupby('Race Time')['Horse'].transform('count')
+    df['Sum Predicted PRBs'] = df.groupby('Race Time')['Predicted PRB'].transform('sum')
+
+    # Apply the normalization formula
+    df['Normalized PPRB'] = df['Predicted PRB'] * (df['N'] / 2) / df['Sum Predicted PRBs']
+
+    # Round Normalized PPRB to 2 decimal places
+    df['Normalized PPRB'] = df['Normalized PPRB'].round(2)
+
+    return df
+
+# Load the predictions file
+file_path = 'unseen_race_predictions.csv'
+data = pd.read_csv(file_path)
+
+# Normalize the data
+normalized_data = normalize_prb(data)
+
+# Save the normalized data to a new CSV file
+output_path = 'normalized_race_predictions.csv'
+normalized_data.to_csv(output_path, index=False)
+
+print(f"Normalized predictions saved to '{output_path}'")
+

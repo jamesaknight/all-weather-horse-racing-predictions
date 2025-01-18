@@ -1,0 +1,95 @@
+\documentclass[twocolumn]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath, amssymb}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{geometry}
+
+% Page Layout
+\geometry{a4paper, margin=1in}
+
+% Title and Author
+\title{Predicting Horse Racing Odds with Neural Networks and Gradient Boosted Decision Trees: \\ A Multi-Method Approach to Modeling Sports Outcomes}
+\author{Thomas Bale // James Knight}
+\date{\today}
+
+\begin{document}
+
+% Title
+\maketitle
+
+% Abstract
+\begin{abstract}
+This paper explores the development of an all-weather horse racing odds predictor using neural networks (NNs) and gradient-boosted decision trees (GBDTs). Key innovations include the application of advanced optimization techniques, masking, attention mechanisms, and post-processing methods such as normal distribution modeling and softmax adjustments. With a consistent \(R^2\) score of 0.7, we discuss challenges and propose future directions, including comparative GBDT models for individual horses.
+\end{abstract}
+
+\section{Introduction}
+\subsection{Background}
+Sports betting, particularly in horse racing, presents unique challenges due to data sparsity and variability in racing conditions. Accurate odds prediction has both academic and commercial importance.
+
+\subsection{Motivation}
+The collaboration with a racing trading director highlights the practical need for robust predictive systems. By applying state-of-the-art machine learning methods, this paper aims to improve prediction accuracy and reliability.
+
+\subsection{Contributions}
+This work introduces:
+\begin{itemize}
+    \item Advanced optimization techniques (SGD, Adam, RMSProp, etc.).
+    \item Masking and attention mechanisms for better input relevance.
+    \item Post-processing methods like normal distribution modeling and softmax adjustments.
+\end{itemize}
+
+\section{Related Work}
+Discuss the current literature on sports outcome prediction, including machine learning techniques in betting and horse racing. Highlight gaps this work addresses.
+
+\section{Methodology}
+\subsection{Dataset}
+Describe the dataset, including features, pre-processing steps, and challenges like data sparsity. Explain how bootstrapping was applied to estimate variances.
+
+\subsection{Model Architectures}
+Detail the design of the neural network and GBDT models. Include specifics about:
+\begin{itemize}
+    \item Network architecture and hyperparameter choices.
+    \item Optimization methods and their comparative performance.
+\end{itemize}
+
+\subsection{Post-Processing}
+Explain techniques such as:
+\begin{itemize}
+    \item Modeling each horse's performance with a normal distribution.
+    \item Using softmax adjustments for better comparative odds.
+\end{itemize}
+
+\subsection{Evaluation Metrics}
+Discuss metrics like \(R^2\) and RMSE used for evaluating the models.
+
+\section{Experiments and Results}
+Present your experiments:
+\begin{itemize}
+    \item Comparison of baseline models vs. advanced methods.
+    \item Impact of optimization techniques and post-processing.
+    \item Evaluation of GBDT models for individual horses.
+\end{itemize}
+Include graphs and tables to visualize results.
+
+\section{Discussion}
+\subsection{Insights}
+Analyze successes and failures of the models and techniques.
+
+\subsection{Challenges}
+Discuss obstacles such as overfitting, data sparsity, and model limitations.
+
+\subsection{Future Work}
+Propose directions for improvement, such as incorporating comparative data or exploring hybrid models.
+
+\section{Conclusion}
+Summarize the key contributions, findings, and implications for future research and practical applications in sports betting.
+
+\section*{References}
+\bibliographystyle{plain}
+\bibliography{references}
+
+\end{document}
